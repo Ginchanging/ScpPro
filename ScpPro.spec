@@ -26,8 +26,8 @@ app = BUNDLE(
     collection, name="ScpPro.app", icon=str(root / "build/ScpPro.icns"),
     bundle_identifier="com.scppro.desktop",
     info_plist={
-        "CFBundleShortVersionString": "1.0.0",
-        "CFBundleVersion": "1.0.0",
+        "CFBundleShortVersionString": "1.1.0",
+        "CFBundleVersion": "1.1.0",
         "NSHighResolutionCapable": True,
         "LSMinimumSystemVersion": "13.0",
         "NSDocumentsFolderUsageDescription": "用于浏览、上传和下载您选择的文稿文件。",

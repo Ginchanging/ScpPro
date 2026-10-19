@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -15,7 +16,14 @@ class StorageError(Exception):
 
 def data_directory() -> Path:
     override = os.environ.get("SCPPRO_DATA_DIR")
-    return Path(override).expanduser() if override else Path.home() / "Library/Application Support/ScpPro"
+    if override:
+        return Path(override).expanduser()
+    if sys.platform == "win32":
+        return Path(os.environ.get("APPDATA") or Path.home() / "AppData/Roaming") / "ScpPro"
+    return Path.home() / "Library/Application Support/ScpPro"
+
+
+SECRET_STORE_NAME = "Windows 凭据管理器" if sys.platform == "win32" else "macOS 钥匙串"
 
 
 def atomic_write(path: Path, text: str) -> None:
@@ -102,13 +110,20 @@ class ProfileStore:
 
 
 class SecretStore:
-    """Use the macOS Keychain explicitly; never fall back to a file backend."""
+    """Use the native OS credential store; never fall back to a file backend."""
 
     def __init__(self, backend=None, service: str = "ScpPro"):
         if backend is None:
-            from keyring.backends.macOS import Keyring
+            if sys.platform == "win32":
+                from keyring.backends.Windows import WinVaultKeyring
 
-            backend = Keyring()
+                backend = WinVaultKeyring()
+            elif sys.platform == "darwin":
+                from keyring.backends.macOS import Keyring
+
+                backend = Keyring()
+            else:
+                raise RuntimeError("ScpPro 目前仅支持 Windows 和 macOS。")
         self.backend = backend
         self.service = service
 

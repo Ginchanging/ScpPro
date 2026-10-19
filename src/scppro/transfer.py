@@ -16,6 +16,7 @@ from .models import (
     PlannedEntry, TransferJob, TransferProgress, TransferResult,
 )
 from .sftp import ConnectionLost, Session, TransferCancelled, entry_kind, error_text, valid_component
+from .windows_paths import case_collision, invalid_windows_name
 
 
 class UnsafeOverwrite(Exception):
@@ -50,6 +51,7 @@ class TransferEngine:
         self._current_name = ""
         self._local_root: Path | None = None
         self._remote_root = ""
+        self._download_targets: set[str] = set()
 
     def cancel(self) -> None:
         self.cancellation.set()
@@ -153,6 +155,16 @@ class TransferEngine:
         if source in seen:
             return
         seen.add(source)
+        if os.name == "nt":
+            issue = invalid_windows_name(posixpath.basename(source.rstrip("/")))
+            if issue:
+                self.result.skipped.append(f"{source}（{issue}）")
+                return
+            folded = target.casefold()
+            if folded in self._download_targets or case_collision(Path(target)):
+                self.result.skipped.append(f"{source}（与本机文件名大小写冲突）")
+                return
+            self._download_targets.add(folded)
         attributes = self.sftp.lstat(source)
         kind = entry_kind(attributes.st_mode)
         if kind not in (EntryKind.FILE, EntryKind.DIRECTORY):
@@ -227,12 +239,14 @@ class TransferEngine:
             return None, None
         if decision.action == ConflictAction.KEEP_BOTH:
             parent = posixpath.dirname(target) if self.job.direction == Direction.UPLOAD else str(Path(target).parent)
-            name = posixpath.basename(target)
+            name = posixpath.basename(target) if self.job.direction == Direction.UPLOAD else Path(target).name
             stem, extension = os.path.splitext(name)
             number = 1
             while True:
                 self._check_cancelled()
-                candidate = posixpath.join(parent, f"{stem} ({number}){extension}")
+                candidate = (posixpath.join(parent, f"{stem} ({number}){extension}")
+                             if self.job.direction == Direction.UPLOAD
+                             else str(Path(parent) / f"{stem} ({number}){extension}"))
                 if self._lstat_target(candidate) is None:
                     return candidate, None
                 number += 1
@@ -294,7 +308,18 @@ class TransferEngine:
         try:
             with self.session.open_sftp() as cleanup:
                 cleanup.get_channel().settimeout(5)
-                cleanup.remove(temporary)
+                # Windows SFTP servers may keep the upload handle open briefly
+                # after a cancelled channel closes. Wait for that handle to exit.
+                for attempt in range(20):
+                    try:
+                        cleanup.remove(temporary)
+                        return
+                    except OSError as exc:
+                        if exc.errno == errno.ENOENT:
+                            return
+                        if attempt == 19:
+                            raise
+                        time.sleep(0.1)
         except OSError as exc:
             if exc.errno != errno.ENOENT:
                 self.result.warnings.append(f"未能清理远程临时文件：{temporary}")
