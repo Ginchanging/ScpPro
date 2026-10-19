@@ -144,7 +144,12 @@ def test_symlinks_skipped_and_destination_links_not_followed(session, server, tm
     source = tmp_path / "folder"
     source.mkdir()
     (source / "real.txt").write_bytes(b"file")
-    (source / "link.txt").symlink_to(source / "real.txt")
+    try:
+        (source / "link.txt").symlink_to(source / "real.txt")
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("Windows 当前用户没有创建符号链接的权限")
+        raise
     result = run(session, [source])
     assert result.completed_files == 1 and len(result.skipped) == 1
     outside = tmp_path / "outside"
@@ -203,7 +208,7 @@ def test_cancel_closes_only_transfer_channel(session, server, tmp_path, directio
     assert not thread.is_alive()
     assert results[0].cancelled
     assert (server.root / source.name if direction == Direction.UPLOAD else source).read_bytes() == b"original"
-    assert not list(server.root.glob(".scppro-*.part"))
+    assert not list(server.root.glob(".scppro-*.part")), results[0].warnings
     assert not list(tmp_path.glob(".scppro-*.part"))
     assert session.is_connected
     assert session.list_directory("/")[0] == "/"

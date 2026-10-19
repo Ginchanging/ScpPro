@@ -1,6 +1,7 @@
 from dataclasses import asdict, replace
 import json
 import stat
+import sys
 import threading
 
 import paramiko
@@ -18,8 +19,9 @@ def test_profiles_round_trip_and_no_secrets(store, profile, secret_store):
     store.save(state)
     loaded = store.load()
     assert loaded == state
-    assert credentials.secret not in store.path.read_text()
-    assert stat.S_IMODE(store.path.stat().st_mode) == 0o600
+    assert credentials.secret not in store.path.read_text(encoding="utf-8")
+    if sys.platform != "win32":
+        assert stat.S_IMODE(store.path.stat().st_mode) == 0o600
     assert secret_store.get(profile) == credentials
     secret_store.delete(profile)
     assert secret_store.get(profile) is None
@@ -43,7 +45,25 @@ def test_host_key_first_trust_then_reuse(profile, store):
         session.close()
     assert len(confirmations) == 1
     assert confirmations[0][2].startswith("SHA256:")
-    assert stat.S_IMODE(store.known_hosts_path.stat().st_mode) == 0o600
+    if sys.platform != "win32":
+        assert stat.S_IMODE(store.known_hosts_path.stat().st_mode) == 0o600
+
+
+def test_windows_default_data_directory(monkeypatch, tmp_path):
+    import scppro.storage as storage
+
+    monkeypatch.delenv("SCPPRO_DATA_DIR", raising=False)
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    monkeypatch.setattr(storage.sys, "platform", "win32")
+    assert storage.data_directory() == tmp_path / "ScpPro"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows credential store")
+def test_windows_credential_backend():
+    from keyring.backends.Windows import WinVaultKeyring
+    from scppro.storage import SecretStore
+
+    assert isinstance(SecretStore().backend, WinVaultKeyring)
 
 
 def test_reject_unknown_host(profile, store):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import sys
 from collections import deque
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -19,7 +20,7 @@ from ..models import (
     ServerProfile, TransferJob, TransferResult,
 )
 from ..sftp import Session, TransferCancelled, error_text, list_local
-from ..storage import AppState, ProfileStore, SecretStore, StorageError
+from ..storage import AppState, ProfileStore, SecretStore, StorageError, SECRET_STORE_NAME
 from ..transfer import TransferEngine
 from ..workers import DecisionBridge, DecisionRequest, Worker
 from .dialogs import ConflictDialog, ProfileDialog, show_result
@@ -120,7 +121,7 @@ class MainWindow(QMainWindow):
         management.addWidget(self.delete_button)
         side_layout.addLayout(management)
         side_layout.addSpacing(12)
-        security = QLabel("SSH 加密连接\n密码可保存到系统钥匙串")
+        security = QLabel(f"SSH 加密连接\n密码可保存到{SECRET_STORE_NAME}")
         security.setObjectName("muted")
         security.setWordWrap(True)
         side_layout.addWidget(security)
@@ -157,7 +158,7 @@ class MainWindow(QMainWindow):
         self.show_hidden_check.toggled.connect(self._hidden_changed)
         options.addWidget(self.show_hidden_check)
         options.addStretch()
-        tip = QLabel("多选：⌘ 点击 · 文件夹：双击打开")
+        tip = QLabel(f"多选：{'Ctrl' if sys.platform == 'win32' else '⌘'} 点击 · 文件夹：双击打开")
         tip.setObjectName("muted")
         options.addWidget(tip)
         content_layout.addLayout(options)
@@ -354,7 +355,7 @@ class MainWindow(QMainWindow):
             finally:
                 barrier.set()
 
-        self._run_worker(Worker(forget), error=lambda message: self._notify_error("未能移除钥匙串凭据：" + message))
+        self._run_worker(Worker(forget), error=lambda message: self._notify_error(f"未能移除{SECRET_STORE_NAME}凭据：" + message))
 
     def _delete_selected(self):
         profile = self._selected_profile()
@@ -415,7 +416,7 @@ class MainWindow(QMainWindow):
                 try:
                     credential = self.secret_store.get(profile)
                 except Exception as exc:
-                    warning = "无法读取钥匙串凭据：" + error_text(exc)
+                    warning = f"无法读取{SECRET_STORE_NAME}凭据：" + error_text(exc)
             if credential is None:
                 credential = self.bridge.ask("credentials", profile, None, cancellation)
                 if credential is None:
@@ -426,7 +427,7 @@ class MainWindow(QMainWindow):
                     try:
                         self.secret_store.set(profile, credential)
                     except Exception as exc:
-                        warning = "连接成功，但未能保存钥匙串凭据：" + error_text(exc, credential.secret)
+                        warning = f"连接成功，但未能保存{SECRET_STORE_NAME}凭据：" + error_text(exc, credential.secret)
                 return session, credential, warning
             except Exception as exc:
                 session.close()

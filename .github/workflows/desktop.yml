@@ -1,0 +1,36 @@
+name: Desktop tests and Windows installer
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  macos-tests:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[dev]'
+      - run: python -m pytest -q
+
+  windows-tests-and-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: x64
+      - run: python -m pip install -e '.[dev,build]'
+      - run: python -m pytest -q
+      - run: choco install innosetup -y --no-progress
+      - run: python scripts/build_windows.py
+      - run: python scripts/check_windows_bundle.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ScpPro-Windows-11-x64-Setup
+          path: dist/ScpPro-*-Windows-11-x64-Setup.exe

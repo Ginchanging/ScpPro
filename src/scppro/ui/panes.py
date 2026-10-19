@@ -102,7 +102,7 @@ class FileTable(QTableWidget):
             except (ValueError, TypeError, KeyError):
                 return None
         if self.side == "remote" and mime.hasUrls():
-            paths = [url.toLocalFile() for url in mime.urls() if url.isLocalFile()]
+            paths = [str(Path(url.toLocalFile())) for url in mime.urls() if url.isLocalFile()]
             if paths:
                 return {"side": "local", "paths": paths, "profile_id": ""}
         return None

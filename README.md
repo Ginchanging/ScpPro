@@ -1,19 +1,19 @@
 # ScpPro
 
-中文 macOS 桌面工具，通过 SSH/SFTP 在本机与指定 IP 的服务器之间上传、下载文件和文件夹。
+中文 Windows 11 与 macOS 桌面工具，通过 SSH/SFTP 在本机与指定 IP 的服务器之间上传、下载文件和文件夹。
 
 ![ScpPro 界面](artifacts/ScpPro-light.png)
 
 ## 直接使用
 
-1. 双击 `dist/ScpPro.app`，或将它拖入“应用程序”目录。应用已包含 Python 与所需依赖。
+1. Windows 11 x64：从 [Releases](https://github.com/Ginchanging/ScpPro/releases) 下载并运行 `ScpPro-1.1.0-Windows-11-x64-Setup.exe`，安装到当前用户。macOS：双击 `dist/ScpPro.app`，或将它拖入“应用程序”目录。应用已包含 Python 与所需依赖。
 2. 点击“添加服务器”，填写名称、IP、SSH 端口（默认 22）和用户名。
-3. 选择密码登录或 SSH 私钥；加密私钥需填写口令。勾选钥匙串选项后，凭据在成功登录后保存。
+3. 选择密码登录或 SSH 私钥；加密私钥需填写口令。勾选保存选项后，凭据在成功登录后保存到系统凭据库。
 4. 点击“连接服务器”。首次连接会显示主机指纹，请核对后点击“信任并连接”。
 5. 左侧浏览本机，右侧浏览服务器。目标是另一侧当前打开的目录；多选后点击“上传”或“下载”，也可跨栏拖拽。
-6. 可将 Finder 的文件或文件夹拖入右侧；拖到一个文件夹行上会传入该文件夹。“选择…”菜单也可上传其他位置的文件或文件夹。
+6. 可将 Windows 文件资源管理器或 Finder 的文件和文件夹拖入右侧；拖到一个文件夹行上会传入该文件夹。“选择…”菜单也可上传其他位置的文件或文件夹。
 
-服务器需已启用 SSH 的 SFTP 子系统，登录账户需具备源目录读取及目标目录写入权限。首版应用支持 Apple 芯片 Mac，最低系统要求 macOS 13；已在当前 macOS 26 环境验证。
+服务器需已启用 SSH 的 SFTP 子系统，登录账户需具备源目录读取及目标目录写入权限。Windows 安装包面向 Windows 11 x64；macOS 应用包支持 Apple 芯片 Mac，最低系统要求 macOS 13。
 
 ## 传输行为
 
@@ -22,6 +22,7 @@
 - 文件先写入目标目录的随机隐藏临时文件，完整传输并核对大小后才提交。取消或失败时已有文件保留。
 - 远程覆盖使用 `posix_rename` 扩展。服务器不支持安全覆盖时任务失败，可重试并选择“保留两份”。
 - 符号链接、设备等特殊文件跳过；目标中的符号链接不会被递归写入。所有跳过、失败和清理提示可查看队列“详情”。
+- Windows 下载时，含 Windows 禁用字符、保留名称、末尾句点或空格的远程文件名，以及仅大小写不同的同目录文件名，会跳过并说明原因；不会自动改名。
 - 队列按批次顺序运行。取消关闭当前传输通道，文件浏览连接保留；失败和取消任务可从头重试未完成项。
 - 网络断开时暂停等待中的批次，重新连接原服务器后继续。任务固定绑定服务器及完整路径。
 - 不做断点续传。已完成文件不会因为重试未完成项而重新传输；扫描阶段失败时会重新扫描整个批次。
@@ -31,22 +32,22 @@
 
 ## 连接与配置
 
-配置与主机密钥保存在 `~/Library/Application Support/ScpPro/`：
+配置与主机密钥保存在 Windows 的 `%APPDATA%\ScpPro\` 或 macOS 的 `~/Library/Application Support/ScpPro/`：
 
 | 文件 | 内容 |
 | --- | --- |
 | `profiles.json` | 服务器列表、端口、用户名、认证方式、私钥路径和最近目录 |
 | `known_hosts` | 用户明确确认的服务器主机密钥 |
 
-密码和私钥口令默认仅保留在当前应用会话中；勾选记住后保存到 macOS 钥匙串，服务名称为 `ScpPro`。取消记住或删除连接会移除对应钥匙串条目。私钥内容不复制到应用配置，密码与私钥口令不写入配置或日志。
+密码和私钥口令默认仅保留在当前应用会话中；勾选记住后保存到 Windows 凭据管理器或 macOS 钥匙串，服务名称为 `ScpPro`。取消记住或删除连接会移除对应凭据条目。私钥内容不复制到应用配置，密码与私钥口令不写入配置或日志。Windows 卸载程序保留用户配置与凭据；如需清除，请手动删除上述配置目录及凭据管理器中的 `ScpPro` 条目。
 
 主机密钥变更时连接会被阻止。确认服务器确实已重装或合法换钥后，退出应用并备份 `known_hosts`，移除该服务器对应的记录，然后重新连接核对新指纹。应用不会自动接受变更。
 
-首版为本地使用的应用包，采用本机临时签名；不包含 Developer ID 公证或 App Store 发布。
+macOS 应用包采用本机临时签名，不包含 Developer ID 公证或 App Store 发布。Windows 安装包未进行数字签名。
 
 ## 开发运行
 
-需要 Python 3.13。
+需要 Python 3.13。macOS 开发环境：
 
 ```bash
 python3 -m venv .venv
@@ -57,7 +58,29 @@ python3 -m venv .venv
 
 快捷键：`⌘N` 添加服务器、`⌘K` 连接、`⌘D` 断开、`⌘U` 选择文件上传、`⌘⇧U` 选择文件夹上传、`⌘⇧D` 下载选中项。
 
+Windows 开发环境：
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,build]"
+.\.venv\Scripts\python.exe -m scppro
+```
+
+Windows 快捷键分别是 `Ctrl+N`、`Ctrl+K`、`Ctrl+D`、`Ctrl+U`、`Ctrl+Shift+U` 和 `Ctrl+Shift+D`。
+
 ## 测试与构建
+
+Windows 11 x64 需要 Python 3.13 和 Inno Setup 6。将 `ISCC.exe` 加入 PATH，或设置 `INNO_SETUP_COMPILER`；构建脚本也会搜索默认安装位置。
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe scripts\build_windows.py
+.\.venv\Scripts\python.exe scripts\check_windows_bundle.py
+```
+
+安装包输出到 `dist/ScpPro-1.1.0-Windows-11-x64-Setup.exe`。Windows 验证脚本会在临时目录中启动打包程序，并静默安装、启动和卸载安装包。
+
+macOS：
 
 ```bash
 # 测试使用临时目录和仅监听 127.0.0.1 的 SSH/SFTP 服务

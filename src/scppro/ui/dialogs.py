@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..models import AuthMethod, ConflictAction, ConflictDecision, Credentials, PlannedEntry, ServerProfile, TransferResult, format_size
+from ..storage import SECRET_STORE_NAME
 
 
 class ProfileDialog(QDialog):
@@ -56,7 +57,7 @@ class ProfileDialog(QDialog):
         self.secret_edit = QLineEdit()
         self.secret_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self.secret_label = QLabel("密码")
-        self.remember_check = QCheckBox("保存密码到 macOS 钥匙串")
+        self.remember_check = QCheckBox(f"保存密码到 {SECRET_STORE_NAME}")
         self.remember_check.setChecked(profile.remember_secret if profile else False)
         self.saved_hint = QLabel("留空保留已保存的凭据；也可在连接时输入。")
         self.saved_hint.setObjectName("muted")
@@ -85,7 +86,7 @@ class ProfileDialog(QDialog):
         self.key_label.setVisible(is_key)
         self.secret_label.setText("私钥口令" if is_key else "密码")
         self.secret_edit.setPlaceholderText("未加密私钥可留空" if is_key else "连接密码")
-        self.remember_check.setText("保存私钥口令到 macOS 钥匙串" if is_key else "保存密码到 macOS 钥匙串")
+        self.remember_check.setText(f"保存{'私钥口令' if is_key else '密码'}到 {SECRET_STORE_NAME}")
 
     def _choose_key(self):
         path, _ = QFileDialog.getOpenFileName(self, "选择 SSH 私钥", str(Path.home() / ".ssh"))

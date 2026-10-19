@@ -1,5 +1,6 @@
 # Python 虚拟环境与编译缓存
 .venv/
+.venv-win/
 venv/
 env/
 __pycache__/
