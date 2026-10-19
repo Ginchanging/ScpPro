@@ -49,7 +49,7 @@ def main() -> None:
             assert uninstaller.is_file(), "找不到卸载程序"
             uninstall = subprocess.run([str(uninstaller), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"], timeout=120)
             assert uninstall.returncode == 0, f"卸载失败：{uninstall.returncode}"
-    print("Windows 可执行文件、安装与卸载验证通过。")
+    print("Windows executable, installer and uninstaller checks passed.")
 
 
 if __name__ == "__main__":
